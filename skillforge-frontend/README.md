@@ -8,9 +8,18 @@ A modern React-based Learning Management System frontend built with Vite, Tailwi
 - 🔐 **Authentication** - Secure login and signup with JWT tokens
 - 📚 **Course Discovery** - Browse and explore available courses
 - 📊 **User Dashboard** - Track enrolled courses and progress
-- 🎯 **Responsive Design** - Works seamlessly on desktop, tablet, and mobile
-- ⚡ **Fast Performance** - Built with Vite for instant development experience
-- 🔄 **API Integration** - Ready-made integration with Skill Forge backend
+- 🧩 **Course Modules** - Structured module-based learning system
+- 🎥 **Video Streaming** - Watch course videos inside modules
+- 📄 **Document Downloads** - Access learning resources
+- 📈 **Progress Tracking** - Track course and module completion
+- ⏱️ **Video Progress Tracking** - Resume from where you left off
+- 🧠 **Quiz System** - Module-based quizzes
+- 🏆 **Quiz Results** - Score calculation and feedback
+- 🛠️ **Admin Dashboard** - Manage platform data
+- 👥 **User Management** - Add, edit, delete users and assign roles
+- 🎯 **Responsive Design** - Works on all devices
+- ⚡ **Fast Performance** - Built with Vite
+- 🔄 **API Integration** - Modular API structure
 
 ## Tech Stack
 
@@ -43,39 +52,32 @@ A modern React-based Learning Management System frontend built with Vite, Tailwi
 
 ### Setup Steps
 
-1. **Navigate to frontend folder**
+1. Navigate to frontend folder
 
-   ```bash
-   cd skillforge/frontend
-   ```
+```bash
+cd skillforge/frontend
+```
 
-2. **Install dependencies**
+2. Install dependencies
 
-   ```bash
-   npm install
-   ```
+```bash
+npm install
+```
 
-3. **Start development server**
+3. Start development server
 
-   ```bash
-   npm run dev
-   ```
+```bash
+npm run dev
+```
 
-   The app will be available at `http://localhost:5173`
+The app will be available at `http://localhost:5173`
 
 ## Available Scripts
 
 ```bash
-# Development server
 npm run dev
-
-# Build for production
 npm run build
-
-# Preview production build
 npm run preview
-
-# Lint code
 npm run lint
 ```
 
@@ -85,216 +87,184 @@ npm run lint
 frontend/
 ├── src/
 │   ├── components/
-│   │   ├── LandingPage.jsx       # Homepage with auth-aware greeting
-│   │   ├── LoginPage.jsx         # User login form
-│   │   ├── SignupPage.jsx        # User registration form
-│   │   └── Dashboard.jsx         # User dashboard (protected)
+│   │   ├── LandingPage.jsx
+│   │   ├── LoginPage.jsx
+│   │   ├── SignupPage.jsx
+│   │   ├── Dashboard.jsx
+│   │   ├── Courses.jsx
+│   │   ├── CourseDetails.jsx
+│   │   ├── CourseModules.jsx
+│   │   ├── ModuleDetail.jsx
+│   │   ├── Quiz.jsx
+│   │   ├── QuizResults.jsx
+│   │   ├── AdminDashboard.jsx
+│   │   ├── AdminCourses.jsx
+│   │   ├── AdminCourseForm.jsx
+│   │   └── AdminUsers.jsx
 │   ├── context/
-│   │   └── AuthContext.jsx       # Authentication state management
-│   ├── App.jsx                   # Main app component with routes
-│   ├── main.jsx                  # React entry point
-│   ├── index.css                 # Global styles
-│   └── App.css                   # App-specific styles
-├── index.html                    # HTML entry point
-├── package.json                  # Project dependencies
-├── tailwind.config.js            # Tailwind CSS configuration
-├── vite.config.js                # Vite configuration
-└── README.md                     # This file
+│   │   ├── AuthContext.jsx
+│   │   └── CourseContext.jsx
+│   ├── utils/
+│   │   ├── authApi.js
+│   │   ├── coursesApi.js
+│   │   ├── adminApi.js
+│   │   └── progressApi.js
+│   ├── App.jsx
+│   ├── main.jsx
+│   ├── index.css
+│   └── App.css
 ```
 
 ## Pages Overview
 
 ### Landing Page (`/`)
 
-- **Auth View**: Shows greeting for logged-in users with option to go to dashboard
-- **Guest View**: Displays features, course preview, and FAQ
-- **Navigation**: Dynamic navbar based on authentication status
-- **CTA**: Contextual call-to-action buttons
+- Auth-aware greeting
+- Guest view with features and CTA
+- Navigation based on authentication
 
 ### Login Page (`/login`)
 
-- User login form
-- Email and password validation
-- Error handling
-- Link to signup for new users
+- Email/password login
+- Validation and error handling
 
 ### Signup Page (`/signup`)
 
-- User registration form
-- Name, email, and password fields
-- Password validation
-- Account creation with auto-login
+- User registration
+- Auto login after signup
 
 ### Dashboard (`/dashboard`)
 
-- Protected route (requires authentication)
-- User greeting and profile info
-- Quick stats (enrolled courses, progress, learning hours)
-- List of enrolled courses
-- Browse more courses button
-- Logout functionality
+- Protected route
+- Shows enrolled courses
+- Displays progress statistics
+- Continue learning functionality
+
+### Courses (`/courses`)
+
+- Browse all courses
+- Course listing UI
+
+### Course Details (`/courses/:id`)
+
+- Course information
+- Enrollment option
+- Module overview
+
+### Course Modules (`/courses/:id/modules`)
+
+- List of modules
+- Structured learning flow
+
+### Module Detail (`/courses/:id/modules/:moduleId`)
+
+- Video player
+- Document download
+- Progress tracking
+- Access to quiz
+
+### Quiz (`/courses/:id/modules/:moduleId/quiz`)
+
+- Question-based quiz
+- Answer submission
+
+### Quiz Results (`/courses/:id/modules/:moduleId/quiz/results`)
+
+- Score display
+- Feedback and results
+
+### Admin Dashboard (`/admin`)
+
+- Overview of platform
+- Navigation to admin tools
+
+### Admin Courses (`/admin/courses`)
+
+- Add, edit, delete courses
+- Manage modules
+
+### Admin Users (`/admin/users`)
+
+- Add, edit, delete users
+- Assign roles
 
 ## Authentication Flow
 
-1. **User Registration**
-   - User fills signup form
-   - Password is hashed on backend
-   - JWT token is returned and stored in localStorage
-   - User is logged in automatically
-
-2. **User Login**
-   - User enters credentials
-   - Backend validates and returns JWT token
-   - Token is stored in localStorage
-   - User is redirected to dashboard or landing page
-
-3. **Protected Routes**
-   - Dashboard route checks authentication status
-   - Unauthenticated users are redirected to login
-   - Token is sent with every API request in Authorization header
-
-4. **Logout**
-   - Token is removed from localStorage
-   - User is redirected to landing page
-   - AuthContext state is cleared
+1. User registers → token stored
+2. User logs in → token stored
+3. Protected routes check auth
+4. API calls include token
+5. Logout clears token
 
 ## API Integration
 
-### Environment Setup
+Backend URL:
+http://localhost:5000
 
-The frontend is configured to connect to the backend at `http://localhost:5000`. This can be customized in the `AuthContext.jsx` file.
+### Endpoints
 
-### API Endpoints Used
+| Endpoint                         | Method | Use            |
+| -------------------------------- | ------ | -------------- |
+| /api/auth/signup                 | POST   | Register       |
+| /api/auth/login                  | POST   | Login          |
+| /api/auth/me                     | GET    | Current user   |
+| /api/auth/logout                 | POST   | Logout         |
+| /api/courses                     | GET    | All courses    |
+| /api/courses/:id                 | GET    | Course details |
+| /api/courses/my-courses/enrolled | GET    | User courses   |
+| /api/courses/:id/enroll          | POST   | Enroll         |
+| /api/users                       | GET    | All users      |
+| /api/users/:id                   | PUT    | Update user    |
+| /api/users/:id                   | DELETE | Delete user    |
 
-| Endpoint                           | Method | Use                | Auth     |
-| ---------------------------------- | ------ | ------------------ | -------- |
-| `/api/auth/signup`                 | POST   | User registration  | No       |
-| `/api/auth/login`                  | POST   | User login         | No       |
-| `/api/auth/me`                     | GET    | Get current user   | Yes      |
-| `/api/auth/logout`                 | POST   | Logout user        | Yes      |
-| `/api/courses`                     | GET    | Get all courses    | Optional |
-| `/api/courses/:id`                 | GET    | Get course details | Optional |
-| `/api/courses/my-courses/enrolled` | GET    | Get user's courses | Yes      |
-| `/api/courses/:id/enroll`          | POST   | Enroll in course   | Yes      |
+## API Structure
 
-## Using the AuthContext
+- authApi.js → authentication
+- coursesApi.js → courses
+- adminApi.js → admin
+- progressApi.js → progress tracking
 
-The `AuthContext` provides authentication state and methods throughout the app.
+## Learning Flow
 
-### Hook Usage
-
-```jsx
-import { useAuth } from "../context/AuthContext";
-
-function MyComponent() {
-  const { user, isAuthenticated, isLoading, login, signup, logout } = useAuth();
-
-  return (
-    <>{isAuthenticated ? <p>Welcome, {user.name}!</p> : <p>Please log in</p>}</>
-  );
-}
 ```
-
-### Available Methods
-
-- `login(email, password)` - Login user
-- `signup(name, email, password)` - Register new user
-- `logout()` - Logout user and clear token
-- `user` - Current user object or null
-- `isAuthenticated` - Boolean indicating if user is logged in
-- `isLoading` - Boolean indicating if auth checks are in progress
-
-## Customization
-
-### Modifying Colors
-
-Edit the Tailwind classes in components. Color palette is built into class names:
-
-- `bg-[#FFF9F4]` for background
-- `text-orange-600` for primary orange
-- `text-slate-900` for primary text
-
-### Adding New Pages
-
-1. Create component in `src/components/`
-2. Add route in `App.jsx`
-3. Use React Router navigation:
-   ```jsx
-   import { useNavigate } from "react-router-dom";
-   const navigate = useNavigate();
-   navigate("/path");
-   ```
-
-### Modifying API URLs
-
-Update the fetch URLs in `src/context/AuthContext.jsx`:
-
-```javascript
-const response = await fetch('http://your-api-url/api/endpoint', { ... });
+Enroll → Modules → Video → Quiz → Results → Progress Update
 ```
 
 ## Troubleshooting
 
-### Backend Connection Issues
+### Backend Issues
 
-- Ensure backend is running on `http://localhost:5000`
-- Check browser console for CORS errors
-- Verify backend `CORS_ORIGIN` includes frontend URL
+- Ensure backend is running
+- Check CORS configuration
 
-### Authentication Not Working
+### Auth Issues
 
-- Ensure token is stored in localStorage
-- Check that token is included in request headers
-- Verify JWT secret matches between frontend and backend
+- Verify token in localStorage
+- Check headers
 
-### Styling Issues
+### Video Issues
 
-- Run `npm install` to ensure Tailwind CSS is installed
-- Restart dev server after installing dependencies
-- Clear browser cache if styles don't update
+- Use public URLs (Cloudinary etc.)
+
+### Progress Issues
+
+- Verify backend progress API
 
 ## Development Workflow
 
-1. **Start Backend**
+```bash
+cd backend
+npm start
 
-   ```bash
-   cd backend
-   npm start
-   ```
+cd frontend
+npm run dev
+```
 
-2. **Start Frontend**
-
-   ```bash
-   cd frontend
-   npm run dev
-   ```
-
-3. **Access Application**
-   - Open `http://localhost:5173` in browser
-
-4. **Make Changes**
-   - Edit components and save
-   - Vite will hot-reload automatically
-
-## Building for Production
+## Build for Production
 
 ```bash
 npm run build
 ```
-
-This creates an optimized build in the `dist/` folder ready for deployment.
-
-## Future Enhancements
-
-- [ ] Course search and filtering
-- [ ] User profile customization
-- [ ] Course notifications
-- [ ] Dark mode support
-- [ ] Offline support with Service Workers
-- [ ] Course video integration
-- [ ] Progress visualization
-- [ ] Certificate generation
-- [ ] Mobile app with React Native
 
 ## License
 
@@ -302,4 +272,4 @@ MIT
 
 ## Support
 
-For issues or questions, please check the backend README or open an issue in the repository.
+Check backend README or open an issue
