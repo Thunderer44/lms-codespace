@@ -365,17 +365,17 @@ export default function LandingPage() {
                 A Modern UI designed to make your learning experience better
               </h2>
               <p className="mt-4 max-w-xl text-slate-600">
-                Course selection, module and progress tarcking, videos and pdf
-                for assistance and quiz at completion to test your learning.
+                Soft orange accents, Comfortable contrast, Responsive layout,
+                Professional landing feel.
               </p>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               {[
-                "Soft orange accents",
-                "Comfortable contrast",
-                "Responsive layout",
-                "Professional landing feel",
+                "Course Selection",
+                "Progress Tracking",
+                "Video & PDF Assets",
+                "Completion Quizes To test knowledge",
               ].map((item, index) => (
                 <div
                   key={index}
