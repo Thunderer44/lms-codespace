@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getCourseProgress } from "../utils/progressApi";
+import { getEnrolledCourses } from "../utils/coursesApi";
 
 export default function Dashboard() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -21,33 +22,24 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchCoursesAndProgress = async () => {
       try {
-        const token = localStorage.getItem("authToken");
-        const response = await fetch(
-          `${import.meta.env.VITE_API_URL}/api/courses/my-courses/enrolled`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
-        );
+        const data = await getEnrolledCourses();
+        setCourses(data);
 
-        if (response.ok) {
-          const data = await response.json();
-          setCourses(data);
-
-          // Fetch progress for each course
-          const progressMap = {};
-          for (const course of data) {
-            try {
-              const progressData = await getCourseProgress(course._id);
-              progressMap[course._id] = progressData;
-            } catch (err) {
-              console.error(`Failed to fetch progress for course ${course._id}:`, err);
-              progressMap[course._id] = { overallProgress: 0 };
-            }
+        // Fetch progress for each course
+        const progressMap = {};
+        for (const course of data) {
+          try {
+            const progressData = await getCourseProgress(course._id);
+            progressMap[course._id] = progressData;
+          } catch (err) {
+            console.error(
+              `Failed to fetch progress for course ${course._id}:`,
+              err,
+            );
+            progressMap[course._id] = { overallProgress: 0 };
           }
-          setCoursesProgress(progressMap);
         }
+        setCoursesProgress(progressMap);
       } catch (error) {
         console.error("Failed to fetch courses:", error);
       } finally {
@@ -128,15 +120,21 @@ export default function Dashboard() {
             <p className="mt-3 text-3xl font-bold text-slate-900">
               {courses.length > 0
                 ? Math.round(
-                    Object.values(coursesProgress).reduce((sum, p) => sum + (p?.overallProgress || 0), 0) /
-                      courses.length,
+                    Object.values(coursesProgress).reduce(
+                      (sum, p) => sum + (p?.overallProgress || 0),
+                      0,
+                    ) / courses.length,
                   )
                 : 0}
               %
             </p>
             <p className="mt-2 text-sm text-slate-600">
-              {Object.values(coursesProgress).filter((p) => p?.overallProgress === 100).length} of {courses.length}{" "}
-              courses completed
+              {
+                Object.values(coursesProgress).filter(
+                  (p) => p?.overallProgress === 100,
+                ).length
+              }{" "}
+              of {courses.length} courses completed
             </p>
           </div>
           <div className="rounded-2xl border border-orange-100 bg-white p-6 shadow-sm">
@@ -144,11 +142,13 @@ export default function Dashboard() {
               Active Courses
             </p>
             <p className="mt-3 text-3xl font-bold text-slate-900">
-              {Object.values(coursesProgress).filter((p) => p?.overallProgress > 0 && p?.overallProgress < 100).length}
+              {
+                Object.values(coursesProgress).filter(
+                  (p) => p?.overallProgress > 0 && p?.overallProgress < 100,
+                ).length
+              }
             </p>
-            <p className="mt-2 text-sm text-slate-600">
-              In progress
-            </p>
+            <p className="mt-2 text-sm text-slate-600">In progress</p>
           </div>
         </div>
 
@@ -183,7 +183,8 @@ export default function Dashboard() {
           ) : (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {courses.map((course) => {
-                const progress = coursesProgress[course._id]?.overallProgress || 0;
+                const progress =
+                  coursesProgress[course._id]?.overallProgress || 0;
                 return (
                   <div
                     key={course._id}
@@ -194,7 +195,9 @@ export default function Dashboard() {
                         <span className="text-xs font-semibold text-orange-600 uppercase tracking-wide">
                           Progress
                         </span>
-                        <span className="text-sm font-bold text-slate-900">{progress}%</span>
+                        <span className="text-sm font-bold text-slate-900">
+                          {progress}%
+                        </span>
                       </div>
                       <div className="h-2 w-full overflow-hidden rounded-full bg-orange-100">
                         <div
@@ -214,7 +217,9 @@ export default function Dashboard() {
                         {course.modules?.length || 0} Modules
                       </span>
                       <button
-                        onClick={() => navigate(`/courses/${course._id}/modules`)}
+                        onClick={() =>
+                          navigate(`/courses/${course._id}/modules`)
+                        }
                         className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700 transition hover:bg-orange-200"
                       >
                         Continue

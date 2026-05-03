@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { checkQuizUnlock, getQuiz, submitQuiz } from "../utils/progressApi";
+import {
+  checkQuizUnlock,
+  getQuiz,
+  submitQuiz,
+  getQuizResults,
+} from "../utils/progressApi";
 import QuizResults from "./QuizResults";
 
 export default function Quiz({ courseId }) {
@@ -27,14 +32,32 @@ export default function Quiz({ courseId }) {
 
         // Check if max attempts reached
         if (unlockStatus.maxAttemptsReached) {
-          setQuizState("attemptsExceeded");
-          return;
+          // Fetch the previous results to display
+          try {
+            const previousResults = await getQuizResults(courseId);
+            setResults(previousResults);
+            setQuizState("completed");
+            return;
+          } catch (err) {
+            console.error("Failed to fetch previous results:", err);
+            setQuizState("attemptsExceeded");
+            return;
+          }
         }
 
         if (unlockStatus.alreadyCompleted) {
           // Load previous results
-          setQuizState("completed");
-          return;
+          try {
+            const previousResults = await getQuizResults(courseId);
+            setResults(previousResults);
+            setQuizState("completed");
+            return;
+          } catch (err) {
+            console.error("Failed to fetch previous results:", err);
+            setError("Failed to load previous quiz results");
+            setQuizState("completed");
+            return;
+          }
         }
 
         // Fetch quiz questions

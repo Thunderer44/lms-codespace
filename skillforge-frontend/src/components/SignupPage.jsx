@@ -1,6 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+
+const GMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
 
 export default function SignupPage() {
   const [name, setName] = useState("");
@@ -9,8 +11,19 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const { login, isAuthenticated, user } = useAuth();
   const { signup } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      if (user.role === "admin") {
+        navigate("/admin", { replace: true });
+      } else {
+        navigate("/dashboard", { replace: true });
+      }
+    }
+  }, [isAuthenticated, user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -19,6 +32,12 @@ export default function SignupPage() {
 
     if (!name || !email || !password || !confirmPassword) {
       setError("Please fill in all fields");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!GMAIL_REGEX.test(email)) {
+      setError("Only Gmail addresses (@gmail.com) are allowed");
       setIsLoading(false);
       return;
     }

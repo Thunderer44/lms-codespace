@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getCourseProgress } from "../utils/progressApi";
+import { getEnrolledCourses } from "../utils/coursesApi";
 
 export default function CourseModules() {
   const { courseId } = useParams();
@@ -12,6 +13,34 @@ export default function CourseModules() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [courseProgress, setCourseProgress] = useState(null);
+
+  // Function to fetch progress data
+  const fetchProgressData = useCallback(async () => {
+    try {
+      const progressData = await getCourseProgress(courseId);
+      console.log("CourseModules - Course Progress Data:", {
+        courseId,
+        progressData,
+        modules: progressData?.modules,
+        moduleCount: progressData?.modules?.length,
+        completedModules: progressData?.modules?.filter((m) => m.completed)
+          ?.length,
+        overallProgress: progressData?.overallProgress,
+      });
+      setCourseProgress(progressData);
+    } catch (progressErr) {
+      console.error("Failed to fetch progress:", progressErr);
+      // Initialize with empty progress on error
+      setCourseProgress({
+        courseId,
+        overallProgress: 0,
+        quizCompleted: false,
+        quizScore: null,
+        modules: [],
+        enrolledAt: new Date(),
+      });
+    }
+  }, [courseId]);
 
   useEffect(() => {
     const fetchEnrolledCourse = async () => {
@@ -25,20 +54,7 @@ export default function CourseModules() {
           return;
         }
 
-        const response = await fetch(
-          `${import.meta.env.VITE_API_URL}/api/courses/my-courses/enrolled`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error("Failed to load enrolled courses");
-        }
-
-        const data = await response.json();
+        const data = await getEnrolledCourses();
 
         const matchedCourse = Array.isArray(data)
           ? data.find((item) => String(item._id) === String(courseId))
@@ -52,18 +68,7 @@ export default function CourseModules() {
         setCourse(matchedCourse);
 
         // Fetch progress data from API
-        try {
-          const progressData = await getCourseProgress(courseId);
-          console.log("Course Progress Data:", {
-            courseId,
-            progressData,
-            modules: progressData?.modules,
-          });
-          setCourseProgress(progressData);
-        } catch (progressErr) {
-          console.error("Failed to fetch progress:", progressErr);
-          // Continue without progress data
-        }
+        await fetchProgressData();
       } catch (err) {
         console.error("Failed to fetch course modules:", err);
         setError("Unable to load modules right now.");
@@ -78,45 +83,98 @@ export default function CourseModules() {
     }
 
     fetchEnrolledCourse();
-  }, [courseId, isAuthenticated, navigate]);
+  }, [courseId, isAuthenticated, navigate, fetchProgressData]);
 
   const modules = useMemo(() => course?.modules || [], [course]);
 
   const completedCount = useMemo(() => {
-    if (!courseProgress || !courseProgress.modules) return 0;
-    return courseProgress.modules.filter((m) => m.completed).length;
+    if (!courseProgress || !Array.isArray(courseProgress.modules)) {
+      return 0;
+    }
+    const count = courseProgress.modules.filter(
+      (m) => m.completed === true,
+    ).length;
+    console.log(
+      "CourseModules - Completed count:",
+      count,
+      "from modules:",
+      courseProgress.modules.map((m) => ({
+        title: m.title,
+        completed: m.completed,
+      })),
+    );
+    return count;
   }, [courseProgress]);
 
   const overallProgress = useMemo(() => {
     if (courseProgress && typeof courseProgress.overallProgress === "number") {
-      return courseProgress.overallProgress;
+      return Math.round(courseProgress.overallProgress);
     }
     return 0;
   }, [courseProgress]);
 
   const getModuleProgress = (module) => {
-    if (!courseProgress || !courseProgress.modules) {
-      console.log("No course progress available");
-      return 0;
+    if (
+      !courseProgress ||
+      !Array.isArray(courseProgress.modules) ||
+      courseProgress.modules.length === 0
+    ) {
+      console.log(
+        "CourseModules - No course progress available for module:",
+        module?.title,
+      );
+      return {
+        progress: 0,
+        completed: false,
+        videoProgress: 0,
+        documentsDownloaded: [],
+      };
     }
 
     const moduleIdStr = String(module._id || module.id);
-    console.log("Looking for progress for module:", moduleIdStr);
-    console.log("Available modules in courseProgress:", courseProgress.modules);
+    console.log(
+      "CourseModules - Looking for progress for module:",
+      module.title,
+      "ID:",
+      moduleIdStr,
+    );
+    console.log(
+      "CourseModules - Available modules in courseProgress:",
+      courseProgress.modules.map((m) => ({
+        moduleId: m.moduleId,
+        title: m.title,
+        progress: m.progress,
+      })),
+    );
 
     const moduleData = courseProgress.modules.find((m) => {
       const mIdStr = String(m.moduleId);
-      console.log(`Comparing: ${mIdStr} === ${moduleIdStr}`, mIdStr === moduleIdStr);
-      return mIdStr === moduleIdStr;
+      const matches = mIdStr === moduleIdStr;
+      if (matches) {
+        console.log(
+          `CourseModules - Found match: ${mIdStr} === ${moduleIdStr}`,
+        );
+      }
+      return matches;
     });
 
-    console.log("Found module data:", moduleData);
+    console.log("CourseModules - Found module data:", moduleData);
 
-    if (moduleData && typeof moduleData.progress === "number") {
-      return moduleData.progress;
+    if (moduleData) {
+      return {
+        progress: moduleData.progress || 0,
+        completed: moduleData.completed || false,
+        videoProgress: moduleData.videoProgress || 0,
+        documentsDownloaded: moduleData.documentsDownloaded || [],
+      };
     }
 
-    return 0;
+    return {
+      progress: 0,
+      completed: false,
+      videoProgress: 0,
+      documentsDownloaded: [],
+    };
   };
 
   if (!isAuthenticated) {
@@ -314,14 +372,11 @@ export default function CourseModules() {
                 const title =
                   module.title || module.name || `Module ${index + 1}`;
                 const description = module.description || module.summary || "";
-                const progress = getModuleProgress(module);
 
-                const moduleIdStr = String(module._id || module.id);
-                const moduleData = courseProgress?.modules.find((m) => {
-                  const mIdStr = String(m.moduleId);
-                  return mIdStr === moduleIdStr;
-                });
-                const completed = moduleData?.completed || false;
+                // Get full progress data for the module
+                const progressData = getModuleProgress(module);
+                const progress = progressData.progress;
+                const completed = progressData.completed;
 
                 return (
                   <div
@@ -363,7 +418,7 @@ export default function CourseModules() {
                         </div>
                       </div>
                       <span className="text-sm font-semibold text-orange-600">
-                        {progress}%
+                        {Math.round(progress)}%
                       </span>
                     </div>
 

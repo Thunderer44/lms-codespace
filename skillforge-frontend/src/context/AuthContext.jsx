@@ -1,4 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import {
+  login as loginApi,
+  signup as signupApi,
+  checkAuth as checkAuthApi,
+  logout as logoutApi,
+} from "../utils/authApi";
 
 const AuthContext = createContext();
 
@@ -6,29 +12,15 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check if user is logged in on mount (simulating a session check)
+  // Check if user is logged in on mount
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const token = localStorage.getItem("authToken");
-        if (token) {
-          // Fetch user data from backend using the token
-          const response = await fetch(
-            `${import.meta.env.VITE_API_URL}/api/auth/me`,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            },
-          );
-
-          if (response.ok) {
-            const userData = await response.json();
-            setUser(userData);
-          } else {
-            localStorage.removeItem("authToken");
-            setUser(null);
-          }
+        const result = await checkAuthApi();
+        if (result.success) {
+          setUser(result.user);
+        } else {
+          setUser(null);
         }
       } catch (error) {
         console.error("Auth check failed:", error);
@@ -44,26 +36,11 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     setIsLoading(true);
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/auth/login`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ email, password }),
-        },
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        localStorage.setItem("authToken", data.token);
-        setUser(data.user);
-        return { success: true };
-      } else {
-        const error = await response.json();
-        return { success: false, error: error.message };
+      const result = await loginApi(email, password);
+      if (result.success) {
+        setUser(result.user);
       }
+      return result;
     } catch (error) {
       return { success: false, error: error.message };
     } finally {
@@ -74,26 +51,11 @@ export const AuthProvider = ({ children }) => {
   const signup = async (name, email, password) => {
     setIsLoading(true);
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/auth/signup`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ name, email, password }),
-        },
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        localStorage.setItem("authToken", data.token);
-        setUser(data.user);
-        return { success: true };
-      } else {
-        const error = await response.json();
-        return { success: false, error: error.message };
+      const result = await signupApi(name, email, password);
+      if (result.success) {
+        setUser(result.user);
       }
+      return result;
     } catch (error) {
       return { success: false, error: error.message };
     } finally {
@@ -102,8 +64,17 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem("authToken");
+    logoutApi();
     setUser(null);
+  };
+
+  const isAuthenticated = !!user;
+  const useAuth = () => {
+    const context = useContext(AuthContext);
+    if (!context) {
+      throw new Error("useAuth must be used within AuthProvider");
+    }
+    return context;
   };
 
   return (
@@ -111,10 +82,10 @@ export const AuthProvider = ({ children }) => {
       value={{
         user,
         isLoading,
+        isAuthenticated,
         login,
         signup,
         logout,
-        isAuthenticated: !!user,
       }}
     >
       {children}
@@ -125,7 +96,7 @@ export const AuthProvider = ({ children }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error("useAuth must be used within AuthProvider");
   }
   return context;
 };

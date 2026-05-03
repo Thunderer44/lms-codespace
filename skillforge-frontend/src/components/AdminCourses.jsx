@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import AdminCourseForm from "./AdminCourseForm";
+import { getAllCoursesAdmin } from "../utils/adminApi";
+import { deleteCourse } from "../utils/adminApi";
 
 export default function AdminCourses() {
   const [courses, setCourses] = useState([]);
@@ -11,21 +13,9 @@ export default function AdminCourses() {
   const fetchCourses = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("authToken");
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/admin/courses`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch courses");
-      }
+      const data = await getAllCoursesAdmin();
 
-      const data = await response.json();
       setCourses(data);
       setError("");
     } catch (err) {
@@ -46,20 +36,7 @@ export default function AdminCourses() {
     }
 
     try {
-      const token = localStorage.getItem("authToken");
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/admin/courses/${courseId}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to delete course");
-      }
+      await deleteCourse(courseId);
 
       setCourses(courses.filter((c) => c._id !== courseId));
     } catch (err) {

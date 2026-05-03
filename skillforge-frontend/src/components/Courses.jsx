@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { getAllCourses } from "../utils/coursesApi";
 
 export default function ExploreCourses() {
   const navigate = useNavigate();
@@ -17,24 +18,8 @@ export default function ExploreCourses() {
         setIsLoading(true);
         setError("");
 
-        const token = localStorage.getItem("authToken");
+        const data = await getAllCourses();
 
-        const response = await fetch(
-          `${import.meta.env.VITE_API_URL}/api/courses`,
-          {
-            headers: token
-              ? {
-                  Authorization: `Bearer ${token}`,
-                }
-              : {},
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error("Failed to load courses");
-        }
-
-        const data = await response.json();
         setCourses(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error("Failed to fetch courses:", err);

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import User from "../../../skillforge-backend/src/models/User";
+import { getCourseById } from "../utils/coursesApi";
+import { enrollCourse } from "../utils/coursesApi";
 
 export default function CourseDetails() {
   const { courseId } = useParams();
@@ -20,24 +21,8 @@ export default function CourseDetails() {
         setIsLoading(true);
         setError("");
 
-        const token = localStorage.getItem("authToken");
+        const data = await getCourseById(courseId);
 
-        const response = await fetch(
-          `${import.meta.env.VITE_API_URL}/api/courses/${courseId}`,
-          {
-            headers: token
-              ? {
-                  Authorization: `Bearer ${token}`,
-                }
-              : {},
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error("Failed to load course");
-        }
-
-        const data = await response.json();
         setCourse(data);
 
         if (data.enrolledUsers.includes(user._id)) {
@@ -102,24 +87,8 @@ export default function CourseDetails() {
       }
 
       // 2. API call
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/courses/${course._id}/enroll`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
 
-      // 3. Response handling
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.message || "Enrollment failed");
-      }
-
-      const data = await response.json();
+      const data = await enrollCourse(course._id);
 
       // 4. UX feedback
       alert("Successfully enrolled in course");

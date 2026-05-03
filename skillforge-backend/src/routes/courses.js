@@ -20,7 +20,7 @@ const getSafeCourseProgress = (user, courseIdStr) => {
   }
 
   let courseProgress = user.progress.get(courseIdStr);
-  
+
   if (!courseProgress) {
     // Initialize if not exist
     courseProgress = {
@@ -33,17 +33,81 @@ const getSafeCourseProgress = (user, courseIdStr) => {
     };
   }
 
-  // Ensure modules is a Map
-  if (!(courseProgress.modules instanceof Map)) {
+  // Ensure modules is a Map - handle both Map instances and plain objects
+  if (courseProgress.modules && !(courseProgress.modules instanceof Map)) {
     const modulesData = courseProgress.modules || {};
-    courseProgress.modules = new Map(
-      typeof modulesData === 'object' 
-        ? Object.entries(modulesData) 
-        : []
-    );
+    if (typeof modulesData === "object" && !Array.isArray(modulesData)) {
+      // Convert plain object to Map
+      courseProgress.modules = new Map(Object.entries(modulesData));
+    } else {
+      courseProgress.modules = new Map();
+    }
+  } else if (!courseProgress.modules) {
+    courseProgress.modules = new Map();
   }
 
   return courseProgress;
+};
+
+// Helper function to convert course progress to JSON-serializable format
+const serializeCourseProgress = (courseProgress, course) => {
+  const moduleProgress = [];
+
+  if (course && course.modules && courseProgress.modules) {
+    course.modules.forEach((module) => {
+      const moduleIdStr = String(module._id || module.id);
+
+      let modProgress = null;
+
+      // Try to get progress from Map first
+      if (courseProgress.modules instanceof Map) {
+        modProgress = courseProgress.modules.get(moduleIdStr);
+      } else if (
+        courseProgress.modules &&
+        typeof courseProgress.modules === "object"
+      ) {
+        // If it's a plain object, check all keys
+        modProgress = courseProgress.modules[moduleIdStr];
+        if (!modProgress) {
+          // Try matching by iterating all keys
+          for (const key in courseProgress.modules) {
+            if (String(key) === moduleIdStr) {
+              modProgress = courseProgress.modules[key];
+              break;
+            }
+          }
+        }
+      }
+
+      // Default progress if not found
+      modProgress = modProgress || {
+        progress: 0,
+        videoProgress: 0,
+        completed: false,
+        completedAt: null,
+        documentsDownloaded: [],
+      };
+
+      moduleProgress.push({
+        moduleId: moduleIdStr,
+        title: module.title || module.name,
+        progress: modProgress.progress || 0,
+        videoProgress: modProgress.videoProgress || 0,
+        completed: modProgress.completed || false,
+        completedAt: modProgress.completedAt || null,
+        documentsDownloaded: modProgress.documentsDownloaded || [],
+      });
+    });
+  }
+
+  return {
+    courseId: String(courseProgress.courseId),
+    overallProgress: courseProgress.overallProgress || 0,
+    quizCompleted: courseProgress.quizCompleted || false,
+    quizScore: courseProgress.quizScore || null,
+    modules: moduleProgress,
+    enrolledAt: courseProgress.enrolledAt || new Date(),
+  };
 };
 
 // GET /api/courses/my-courses - Get user's enrolled courses
@@ -307,6 +371,8 @@ router.post(
         );
         if (!isAlreadyDownloaded) {
           moduleProgress.documentsDownloaded.push(documentId);
+          // Mark the module progress as modified if documents array changes
+          // This ensures the change is persisted
         }
       }
 
@@ -319,19 +385,30 @@ router.post(
       // Calculate overall course progress
       let totalModuleProgress = 0;
       let completedModules = 0;
-      courseProgress.modules.forEach((mProgress) => {
-        totalModuleProgress += mProgress.progress;
-        if (mProgress.completed) completedModules++;
-      });
 
-      const totalModules = course.modules.length;
-      courseProgress.overallProgress = Math.round(
-        totalModuleProgress / totalModules,
-      );
+      // Handle both Map and plain object iteration
+      if (courseProgress.modules instanceof Map) {
+        courseProgress.modules.forEach((mProgress) => {
+          totalModuleProgress += mProgress.progress || 0;
+          if (mProgress.completed) completedModules++;
+        });
+      } else if (
+        courseProgress.modules &&
+        typeof courseProgress.modules === "object"
+      ) {
+        for (const mProgress of Object.values(courseProgress.modules)) {
+          totalModuleProgress += mProgress.progress || 0;
+          if (mProgress.completed) completedModules++;
+        }
+      }
+
+      const totalModules = course.modules.length || 1;
+      courseProgress.overallProgress =
+        totalModules > 0 ? Math.round(totalModuleProgress / totalModules) : 0;
 
       user.progress.set(courseIdStr, courseProgress);
       // Mark progress field as modified so Mongoose persists the Map changes
-      user.markModified('progress');
+      user.markModified("progress");
       await user.save();
 
       console.log("=== POST /progress Debug ===");
@@ -343,7 +420,14 @@ router.post(
 
       res.json({
         message: "Progress updated successfully",
-        moduleProgress,
+        moduleProgress: {
+          moduleId: moduleIdStr,
+          progress: moduleProgress.progress,
+          videoProgress: moduleProgress.videoProgress,
+          completed: moduleProgress.completed,
+          completedAt: moduleProgress.completedAt,
+          documentsDownloaded: moduleProgress.documentsDownloaded,
+        },
         overallProgress: courseProgress.overallProgress,
         completedModules,
         totalModules,
@@ -386,59 +470,35 @@ router.get("/:courseId/progress", authenticateToken, async (req, res) => {
 
     console.log("Course progress retrieved:", {
       overallProgress: courseProgress.overallProgress,
-      moduleKeys: Array.from(courseProgress.modules.keys()),
-      moduleCount: courseProgress.modules.size,
+      moduleKeys:
+        courseProgress.modules instanceof Map
+          ? Array.from(courseProgress.modules.keys())
+          : Object.keys(courseProgress.modules || {}),
+      moduleCount:
+        courseProgress.modules instanceof Map
+          ? courseProgress.modules.size
+          : Object.keys(courseProgress.modules || {}).length,
     });
 
-    // Build detailed progress response with module status
-    const moduleProgress = [];
-    course.modules.forEach((module) => {
-      const moduleIdStr = module._id.toString();
-      
-      let modProgress = courseProgress.modules.get(moduleIdStr);
-      if (!modProgress) {
-        // Try to find by checking all keys in case of type mismatch
-        for (const [key, value] of courseProgress.modules.entries()) {
-          if (String(key) === moduleIdStr) {
-            modProgress = value;
-            break;
-          }
-        }
-      }
-      
-      modProgress = modProgress || {
-        progress: 0,
-        videoProgress: 0,
-        completed: false,
-        completedAt: null,
-        documentsDownloaded: [],
-      };
+    // Add courseId to course progress for serialization
+    courseProgress.courseId = courseIdStr;
 
-      console.log(`Module ${module.title} (${moduleIdStr}):`, {
-        progress: modProgress.progress,
-        completed: modProgress.completed,
-      });
-
-      moduleProgress.push({
-        moduleId: moduleIdStr,
-        title: module.title,
-        ...modProgress,
-      });
-    });
+    // Use serialization helper to convert to JSON-safe format
+    const responseData = serializeCourseProgress(courseProgress, course);
 
     console.log("Sending response with module progress data:");
-    console.log("- Total modules:", moduleProgress.length);
-    console.log("- Modules with progress > 0:", moduleProgress.filter(m => m.progress > 0).length);
-    console.log("- Overall progress:", courseProgress.overallProgress);
+    console.log("- Total modules:", responseData.modules.length);
+    console.log(
+      "- Modules with progress > 0:",
+      responseData.modules.filter((m) => m.progress > 0).length,
+    );
+    console.log(
+      "- Completed modules:",
+      responseData.modules.filter((m) => m.completed).length,
+    );
+    console.log("- Overall progress:", responseData.overallProgress);
 
-    res.json({
-      courseId: courseIdStr,
-      overallProgress: courseProgress.overallProgress,
-      quizCompleted: courseProgress.quizCompleted,
-      quizScore: courseProgress.quizScore,
-      modules: moduleProgress,
-      enrolledAt: courseProgress.enrolledAt,
-    });
+    res.json(responseData);
   } catch (error) {
     console.error("Get progress error:", error);
     res.status(500).json({
@@ -513,6 +573,101 @@ router.get(
     }
   },
 );
+
+// GET /api/courses/:courseId/quiz/results - Get previous quiz results
+router.get("/:courseId/quiz/results", authenticateToken, async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const userId = req.user.userId;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ message: "Course not found" });
+    }
+
+    if (!course.quiz) {
+      return res
+        .status(404)
+        .json({ message: "Quiz not available for this course" });
+    }
+
+    const courseIdStr = String(courseId);
+    const courseProgress = user.progress.get(courseIdStr);
+
+    if (
+      !courseProgress ||
+      !courseProgress.quizAttempts ||
+      courseProgress.quizAttempts.length === 0
+    ) {
+      return res.status(404).json({ message: "No quiz attempts found" });
+    }
+
+    // Get the latest attempt
+    const latestAttempt =
+      courseProgress.quizAttempts[courseProgress.quizAttempts.length - 1];
+    const score = latestAttempt.score;
+    const passed = score >= (course.quiz.passingScore || 50);
+
+    // Build detailed results from the latest attempt
+    const detailedResults = [];
+    const answers =
+      latestAttempt.answers instanceof Map
+        ? Object.fromEntries(latestAttempt.answers)
+        : latestAttempt.answers || {};
+
+    course.quiz.questions.forEach((question) => {
+      const questionId = question._id.toString();
+      const selectedIndexStr = answers[questionId];
+
+      // Convert string index to number for proper comparison
+      const selectedIndex =
+        selectedIndexStr !== null && selectedIndexStr !== undefined
+          ? parseInt(selectedIndexStr, 10)
+          : null;
+
+      const isCorrect =
+        selectedIndex !== null && selectedIndex === question.correctAnswerIndex;
+
+      detailedResults.push({
+        questionId,
+        questionText: question.questionText,
+        selectedOption:
+          selectedIndex !== null && selectedIndex !== undefined
+            ? question.options[selectedIndex]
+            : null,
+        correctOption: question.options[question.correctAnswerIndex],
+        isCorrect,
+        explanation: question.explanation,
+      });
+    });
+
+    const correctAnswers = detailedResults.filter((r) => r.isCorrect).length;
+    const totalQuestions = course.quiz.questions.length;
+
+    res.json({
+      score,
+      passed,
+      totalQuestions,
+      correctAnswers,
+      passingScore: course.quiz.passingScore || 50,
+      detailedResults,
+      completedAt: latestAttempt.completedAt,
+      attemptsUsed: courseProgress.quizAttempts.length,
+      attemptsRemaining: Math.max(0, 3 - courseProgress.quizAttempts.length),
+    });
+  } catch (error) {
+    console.error("Get quiz results error:", error);
+    res.status(500).json({
+      message: "Error fetching quiz results",
+      error: error.message,
+    });
+  }
+});
 
 // GET /api/courses/:courseId/quiz/is-unlocked - Check if quiz is unlocked
 router.get(
@@ -725,6 +880,9 @@ router.post("/:courseId/quiz", authenticateToken, async (req, res) => {
     // Update user progress
     courseProgress.quizCompleted = true;
     courseProgress.quizScore = score;
+    if (!courseProgress.quizAttempts) {
+      courseProgress.quizAttempts = [];
+    }
     courseProgress.quizAttempts.push({
       answers: new Map(Object.entries(answers)),
       score,
@@ -732,6 +890,7 @@ router.post("/:courseId/quiz", authenticateToken, async (req, res) => {
     });
 
     user.progress.set(courseId, courseProgress);
+    user.markModified("progress");
     await user.save();
 
     res.json({

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createCourse, updateCourse } from "../utils/adminApi";
 
 export default function AdminCourseForm({ course, onSave, onCancel }) {
   const [formData, setFormData] = useState({
@@ -214,24 +215,15 @@ export default function AdminCourseForm({ course, onSave, onCancel }) {
     setError("");
 
     try {
-      const token = localStorage.getItem("authToken");
       const method = course ? "PATCH" : "POST";
       const endpoint = course
         ? `${import.meta.env.VITE_API_URL}/api/admin/courses/${course._id}`
         : `${import.meta.env.VITE_API_URL}/api/admin/courses`;
 
-      const response = await fetch(endpoint, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to save course");
+      if (method === "POST") {
+        const result = await createCourse(formData);
+      } else {
+        const result = await updateCourse(course._id, formData);
       }
 
       onSave();

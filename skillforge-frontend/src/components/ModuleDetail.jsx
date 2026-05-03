@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import VideoPlayer from "./VideoPlayer";
 import DocumentList from "./DocumentList";
 import ModuleUnlockCheck from "./ModuleUnlockCheck";
 import { getCourseProgress, updateModuleProgress } from "../utils/progressApi";
+import { getEnrolledCourses } from "../utils/coursesApi";
 
 export default function ModuleDetail() {
   const { courseId, moduleId } = useParams();
@@ -18,6 +19,74 @@ export default function ModuleDetail() {
   const [moduleProgress, setModuleProgress] = useState(null);
   const [isCompleting, setIsCompleting] = useState(false);
 
+  // Function to fetch progress data from API
+  const fetchModuleProgress = useCallback(async (cId, mId, matchedModule) => {
+    try {
+      const progressData = await getCourseProgress(cId);
+      console.log("ModuleDetail - Progress Data:", {
+        courseId: cId,
+        moduleId: mId,
+        progressData,
+        modules: progressData?.modules,
+      });
+
+      if (
+        progressData &&
+        Array.isArray(progressData.modules) &&
+        progressData.modules.length > 0
+      ) {
+        const moduleIdStr = String(matchedModule?._id || mId);
+        console.log("ModuleDetail - Looking for module progress:", moduleIdStr);
+        console.log(
+          "ModuleDetail - Available modules:",
+          progressData.modules.map((m) => ({
+            moduleId: m.moduleId,
+            progress: m.progress,
+            completed: m.completed,
+          })),
+        );
+
+        const currentModuleProgress = progressData.modules.find((m) => {
+          const mIdStr = String(m.moduleId);
+          console.log(
+            `ModuleDetail - Comparing: ${mIdStr} === ${moduleIdStr}`,
+            mIdStr === moduleIdStr,
+          );
+          return mIdStr === moduleIdStr;
+        });
+        console.log("ModuleDetail - Found progress:", currentModuleProgress);
+        setModuleProgress(
+          currentModuleProgress || {
+            progress: 0,
+            videoProgress: 0,
+            completed: false,
+            completedAt: null,
+            documentsDownloaded: [],
+          },
+        );
+      } else {
+        console.log("ModuleDetail - No modules in progress data");
+        setModuleProgress({
+          progress: 0,
+          videoProgress: 0,
+          completed: false,
+          completedAt: null,
+          documentsDownloaded: [],
+        });
+      }
+    } catch (progressErr) {
+      console.error("Failed to fetch progress:", progressErr);
+      // Initialize with default progress on error
+      setModuleProgress({
+        progress: 0,
+        videoProgress: 0,
+        completed: false,
+        completedAt: null,
+        documentsDownloaded: [],
+      });
+    }
+  }, []);
+
   useEffect(() => {
     const fetchModule = async () => {
       try {
@@ -30,20 +99,7 @@ export default function ModuleDetail() {
           return;
         }
 
-        const response = await fetch(
-          `${import.meta.env.VITE_API_URL}/api/courses/my-courses/enrolled`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error("Failed to load enrolled courses");
-        }
-
-        const data = await response.json();
+        const data = await getEnrolledCourses();
         const matchedCourse = Array.isArray(data)
           ? data.find((item) => String(item._id) === String(courseId))
           : null;
@@ -68,30 +124,7 @@ export default function ModuleDetail() {
         setModule(matchedModule);
 
         // Fetch progress data from API
-        try {
-          const progressData = await getCourseProgress(courseId);
-          console.log("ModuleDetail - Progress Data:", {
-            courseId,
-            moduleId: matchedModule._id,
-            progressData,
-            modules: progressData?.modules,
-          });
-          
-          if (progressData && progressData.modules) {
-            const moduleIdStr = String(matchedModule._id);
-            console.log("Looking for module progress:", moduleIdStr);
-            const currentModuleProgress = progressData.modules.find((m) => {
-              const mIdStr = String(m.moduleId);
-              console.log(`Comparing: ${mIdStr} === ${moduleIdStr}`, mIdStr === moduleIdStr);
-              return mIdStr === moduleIdStr;
-            });
-            console.log("Found progress:", currentModuleProgress);
-            setModuleProgress(currentModuleProgress || null);
-          }
-        } catch (progressErr) {
-          console.error("Failed to fetch progress:", progressErr);
-          // Continue without progress data
-        }
+        await fetchModuleProgress(courseId, moduleId, matchedModule);
       } catch (err) {
         console.error("Failed to fetch module:", err);
         setError("Unable to load module right now.");
@@ -106,7 +139,7 @@ export default function ModuleDetail() {
     }
 
     fetchModule();
-  }, [courseId, moduleId, isAuthenticated, navigate]);
+  }, [courseId, moduleId, isAuthenticated, navigate, fetchModuleProgress]);
 
   const moduleIndex = useMemo(() => {
     if (!course?.modules || !module) return -1;
@@ -133,26 +166,22 @@ export default function ModuleDetail() {
 
   const progress = useMemo(() => {
     if (moduleProgress && typeof moduleProgress.progress === "number") {
-      return moduleProgress.progress;
+      return Math.round(moduleProgress.progress);
     }
     return 0;
   }, [moduleProgress]);
+
+  const isModuleCompleted = useMemo(() => {
+    return moduleProgress?.completed === true || progress >= 100;
+  }, [moduleProgress, progress]);
 
   const handleCompleteModule = async () => {
     try {
       setIsCompleting(true);
       await updateModuleProgress(courseId, moduleId, { progress: 100 });
 
-      // Refresh progress data
-      const progressData = await getCourseProgress(courseId);
-      if (progressData && progressData.modules && module) {
-        const moduleIdStr = String(module._id);
-        const currentModuleProgress = progressData.modules.find((m) => {
-          const mIdStr = String(m.moduleId);
-          return mIdStr === moduleIdStr;
-        });
-        setModuleProgress(currentModuleProgress || null);
-      }
+      // Refresh progress data from API
+      await fetchModuleProgress(courseId, moduleId, module);
 
       alert("Module marked as completed! 🎉");
     } catch (err) {
@@ -364,7 +393,7 @@ export default function ModuleDetail() {
                       style={{ width: `${progress}%` }}
                     />
                   </div>
-                  {progress === 100 && (
+                  {isModuleCompleted && (
                     <div className="mt-3 flex items-center gap-2 text-green-700">
                       <svg
                         className="w-5 h-5"
@@ -382,7 +411,7 @@ export default function ModuleDetail() {
                   )}
                 </div>
 
-                {progress < 100 && (
+                {/* {!isModuleCompleted && (
                   <button
                     onClick={handleCompleteModule}
                     disabled={isCompleting}
@@ -390,7 +419,7 @@ export default function ModuleDetail() {
                   >
                     {isCompleting ? "Marking..." : "Mark as Complete"}
                   </button>
-                )}
+                )} */}
 
                 <div className="border-t border-orange-100 pt-6">
                   <p className="text-xs font-semibold uppercase tracking-wide text-orange-600 mb-3">

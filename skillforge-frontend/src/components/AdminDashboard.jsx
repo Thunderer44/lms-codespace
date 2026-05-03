@@ -81,7 +81,7 @@ export default function AdminDashboard() {
             >
               Users
             </button>
-            <button
+            {/* <button
               onClick={() => setActiveTab("stats")}
               className={`pb-4 px-1 font-semibold border-b-2 transition ${
                 activeTab === "stats"
@@ -90,7 +90,7 @@ export default function AdminDashboard() {
               }`}
             >
               Statistics
-            </button>
+            </button> */}
           </div>
         </div>
 

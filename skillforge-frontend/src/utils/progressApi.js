@@ -112,6 +112,23 @@ export const submitQuiz = async (courseId, answers) => {
   return await response.json();
 };
 
+// Get previous quiz results
+export const getQuizResults = async (courseId) => {
+  const response = await fetch(
+    `${API_BASE_URL}/api/courses/${courseId}/quiz/results`,
+    {
+      headers: getHeaders(),
+    },
+  );
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Failed to fetch quiz results");
+  }
+
+  return await response.json();
+};
+
 // Helper function to track document download
 export const trackDocumentDownload = async (courseId, moduleId, documentId) => {
   try {

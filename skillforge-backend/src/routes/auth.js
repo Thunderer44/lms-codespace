@@ -12,6 +12,9 @@ const generateToken = (userId) => {
   });
 };
 
+// Gmail-only email regex
+const GMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
+
 // POST /api/auth/signup - Register a new user
 router.post("/signup", async (req, res) => {
   try {
@@ -21,6 +24,13 @@ router.post("/signup", async (req, res) => {
     if (!name || !email || !password) {
       return res.status(400).json({
         message: "Please provide name, email, and password",
+      });
+    }
+
+    // Validate Gmail email
+    if (!GMAIL_REGEX.test(email)) {
+      return res.status(400).json({
+        message: "Only Gmail addresses (@gmail.com) are allowed",
       });
     }
 
@@ -62,6 +72,13 @@ router.post("/login", async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({
         message: "Please provide email and password",
+      });
+    }
+
+    // Validate Gmail email
+    if (!GMAIL_REGEX.test(email)) {
+      return res.status(400).json({
+        message: "Only Gmail addresses (@gmail.com) are allowed",
       });
     }
 

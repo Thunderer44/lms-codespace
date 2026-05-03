@@ -1,4 +1,9 @@
 import React, { useState, useEffect } from "react";
+import { getAllUsersAdmin } from "../utils/adminApi";
+import { createUser, updateUser } from "../utils/adminApi";
+import { deleteUser } from "../utils/adminApi";
+
+const GMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
@@ -23,21 +28,9 @@ export default function AdminUsers() {
     try {
       setIsLoading(true);
       setError("");
-      const token = localStorage.getItem("authToken");
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/admin/users`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch users");
-      }
+      const data = await getAllUsersAdmin();
 
-      const data = await response.json();
       setUsers(data);
     } catch (err) {
       console.error("Fetch users error:", err);
@@ -61,7 +54,12 @@ export default function AdminUsers() {
     setError("");
 
     try {
-      const token = localStorage.getItem("authToken");
+      if (!GMAIL_REGEX.test(formData.email)) {
+        setError("Only Gmail addresses (@gmail.com) are allowed");
+        setIsLoading(false);
+        return;
+      }
+
       const method = editingUser ? "PATCH" : "POST";
       const endpoint = editingUser
         ? `${import.meta.env.VITE_API_URL}/api/admin/users/${editingUser._id}`
@@ -71,18 +69,10 @@ export default function AdminUsers() {
         ? { name: formData.name, email: formData.email, role: formData.role }
         : formData;
 
-      const response = await fetch(endpoint, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to save user");
+      if (editingUser) {
+        await updateUser(editingUser._id, body);
+      } else {
+        await createUser(body);
       }
 
       await fetchUsers();
@@ -120,20 +110,7 @@ export default function AdminUsers() {
     }
 
     try {
-      const token = localStorage.getItem("authToken");
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/admin/users/${userId}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to delete user");
-      }
+      await deleteUser(userId);
 
       await fetchUsers();
     } catch (err) {
