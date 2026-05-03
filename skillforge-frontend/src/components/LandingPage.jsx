@@ -147,7 +147,7 @@ export default function LandingPage() {
 
             <div className="mt-10 grid max-w-2xl grid-cols-3 gap-4">
               <div className="rounded-2xl border border-orange-100 bg-white p-4 shadow-sm">
-                <p className="text-2xl font-bold text-slate-900">100+</p>
+                <p className="text-2xl font-bold text-slate-900">Multiple</p>
                 <p className="mt-1 text-sm text-slate-500">Courses available</p>
               </div>
               <div className="rounded-2xl border border-orange-100 bg-white p-4 shadow-sm">
