@@ -362,12 +362,11 @@ export default function LandingPage() {
                 Benefits
               </p>
               <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-                A page that feels warm, modern, and complete
+                A Modern UI designed to make your learning experience better
               </h2>
               <p className="mt-4 max-w-xl text-slate-600">
-                Soft backgrounds, subtle shadows, and balanced spacing keep the
-                interface comfortable to view while still feeling rich and
-                professional.
+                Course selection, module and progress tarcking, videos and pdf
+                for assistance and quiz at completion to test your learning.
               </p>
             </div>
 
@@ -411,12 +410,12 @@ export default function LandingPage() {
               a: "Users can click Login or Sign Up and then enter the LMS dashboard.",
             },
             {
-              q: "Can I connect this to React Router?",
-              a: "Yes. Replace the href links with Link components if you are using React Router.",
+              q: "Is there Progress tracking?",
+              a: "Yes. There is progress tarcking available for all modules of a course.",
             },
             {
-              q: "Can I add animation later?",
-              a: "Yes. You can add subtle hover transitions or Framer Motion if needed.",
+              q: "Can I take a quiz to test my learning?",
+              a: "Yes. Each course comes with a MCQ Quiz to test your learning.",
             },
           ].map((item, index) => (
             <div
