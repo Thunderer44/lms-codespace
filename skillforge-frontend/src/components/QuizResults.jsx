@@ -185,14 +185,14 @@ export default function QuizResults({ results, courseId }) {
         >
           Back to Course
         </button>
-        {!results.passed && results.attemptsRemaining > 0 && (
+        {/* {!results.passed && results.attemptsRemaining > 0 && (
           <button
             onClick={() => window.location.reload()}
             className="flex-1 px-6 py-3 rounded-full bg-orange-600 text-white font-medium hover:bg-orange-700 transition"
           >
             Retake Quiz ({results.attemptsRemaining} remaining)
           </button>
-        )}
+        )} */}
         {results.attemptsRemaining === 0 && (
           <button
             disabled
